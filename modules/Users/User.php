@@ -732,7 +732,7 @@ class User extends Person implements EmailInterface
         if (!$this->is_group && !$this->portal_only) {
             require_once('modules/MySettings/TabController.php');
 
-            global $current_user, $sugar_config;
+            global $current_user, $sugar_config, $app_strings, $mod_strings, $current_language;
 
             $display_tabs_def = isset($_REQUEST['display_tabs_def']) ? urldecode($_REQUEST['display_tabs_def']) : '';
             $hide_tabs_def = isset($_REQUEST['hide_tabs_def']) ? urldecode($_REQUEST['hide_tabs_def']) : '';
@@ -878,6 +878,15 @@ class User extends Person implements EmailInterface
             if (isset($_POST['timezone'])) {
                 $this->setPreference('timezone', $_POST['timezone'], 0, 'global');
             }
+            if (isset($_POST['language'])) {
+                if ($_SESSION['authenticated_user_id'] === $this->id){
+                    $_SESSION['authenticated_user_language'] = $_POST['language'];
+                }
+                $current_language = $_POST['language'];
+                $mod_strings = return_module_language($_POST['language'], 'Users');
+                $app_strings = return_application_language($_POST['language']);
+                $this->setPreference('language', $_POST['language'], 0, 'global');
+            }
             if (isset($_POST['mail_fromname'])) {
                 $this->setPreference('mail_fromname', $_POST['mail_fromname'], 0, 'global');
             }
@@ -967,9 +976,14 @@ class User extends Person implements EmailInterface
                 $this->setPreference('default_email_charset', $_REQUEST['default_email_charset'], 0, 'global');
             }
 
-            if (isset($_POST['calendar_publish_key'])) {
+            $isValidator = new \SuiteCRM\Utility\SuiteValidator();
+
+            if (isset($_POST['calendar_publish_key']) && $isValidator->isValidKey($_POST['calendar_publish_key'])) {
                 $this->setPreference('calendar_publish_key', $_POST['calendar_publish_key'], 0, 'global');
+            } elseif (isset($_POST['calendar_publish_key'])) {
+                $_POST['calendar_publish_key'] = '';
             }
+
             if (isset($_POST['subtheme'])) {
                 $this->setPreference('subtheme', $_POST['subtheme'], 0, 'global');
             }
@@ -1478,7 +1492,6 @@ EOQ;
                 $query = "SELECT reports_to_id FROM users WHERE id='" . $this->db->quote($check_user) . "'";
                 $result = $this->db->query($query, true, "Error checking for reporting-loop");
                 $row = $this->db->fetchByAssoc($result);
-                echo("fetched: " . $row['reports_to_id'] . " from " . $check_user . "<br>");
                 $check_user = $row['reports_to_id'];
             }
 
@@ -1813,7 +1826,7 @@ EOQ;
             } else {
                 $r = $user->db->query("SELECT value FROM config WHERE name = 'fromaddress'");
                 $a = $user->db->fetchByAssoc($r);
-                $fromddr = $a['value'];
+                $fromaddr = $a['value'];
             }
         }
 
@@ -2418,7 +2431,7 @@ EOQ;
      */
     public function isPrimaryEmail($email)
     {
-        if (!empty($this->email1) && !empty($email) && strcasecmp($this->email1, $email) == 0) {
+        if (!empty($this->email1) && !empty($email) && strcasecmp($this->email1, $email) === 0) {
             return true;
         }
         return false;
