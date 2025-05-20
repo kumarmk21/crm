@@ -143,11 +143,70 @@ class SearchResults
 
                 $obj->load_relationships();
                 $fieldDefs = $obj->getFieldDefinitions();
+                $obj = $this->formatForDisplay($obj, $fieldDefs);
                 $parsed[$module][] = $this->updateFieldDefLinks($obj, $fieldDefs);
             }
         }
 
         return $parsed;
+    }
+
+    /**
+     * Format data so it can be correctly displayed on search results
+     *
+     * @param SugarBean $obj
+     * @param array $fieldDefs
+     * @return SugarBean
+     */
+    protected function formatForDisplay(SugarBean $obj, array $fieldDefs): SugarBean
+    {
+        global $app_list_strings;
+
+        foreach ($fieldDefs as $fieldDef) {
+            $value = $obj->{$fieldDef['name']};
+            if (isset($value)) {
+                switch ($fieldDef['type']){
+                    case 'enum':
+                    case 'dynamicenum':
+
+                        if (isset($obj->field_name_map[$fieldDef['name']]['options']) &&
+                            isset($app_list_strings[$obj->field_name_map[$fieldDef['name']]['options']]) &&
+                            isset($app_list_strings[$obj->field_name_map[$fieldDef['name']]['options']][$value])
+                        ) {
+                            $obj->{$fieldDef['name']} = $app_list_strings[$obj->field_name_map[$fieldDef['name']]['options']][$value];
+                        }
+                        break;
+
+                    case 'multienum':
+                        if (isset($obj->field_name_map[$fieldDef['name']]['options']) &&
+                            isset($app_list_strings[$obj->field_name_map[$fieldDef['name']]['options']]) &&
+                            isset($value)
+                        ) {
+                            $multienumValues = unencodeMultienum($value);
+                            $multienumString = '';
+                            $arrayCount = count($multienumValues);
+                            $i = 0;
+                            foreach ($multienumValues as $multienumValue) {
+                                $i++;
+                                $multienumString .= $app_list_strings[$obj->field_name_map[$fieldDef['name']]['options']][$multienumValue];
+                                if($i !== ($arrayCount)) $multienumString .= ", ";
+                            }
+                            $obj->{$fieldDef['name']} = $multienumString;
+                        }
+                        break;
+
+                    case 'currency':
+                        require_once('modules/Currencies/Currency.php');
+                        if(isset($obj->currency_symbol) && isset($obj->currency_id)){
+                            $obj->{$fieldDef['name']} = currency_format_number($value, ["currency_symbol" => $obj->currency_symbol, "currency_id" => $obj->currency_id]);
+                        }else {
+                            $obj->{$fieldDef['name']} = currency_format_number($value);
+                        }
+                        break;
+                }
+            }
+        }
+        return $obj;
     }
 
     /**
