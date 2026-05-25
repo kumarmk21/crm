@@ -63,7 +63,7 @@ router.post('/generate', async (req, res) => {
         sales_order_id,
         customer_id: order.customer_id,
         subtotal,
-        tax_rate: taxRate,
+        tax_rate: tax_rate,
         tax_amount: taxAmount,
         discount_amount: discount_amount,
         shipping_fee,
